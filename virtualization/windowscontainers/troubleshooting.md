@@ -1,11 +1,23 @@
+---
+title: Troubleshooting Windows Containers
+description: Troubleshooting tips, automated scripts, and log information for Windows containers and Docker
+keywords: docker, containers, troubleshooting, logs
+author: PatrickLang
+ms.date: 12/19/2016
+ms.topic: article
+ms.prod: windows-containers
+ms.service: windows-containers
+ms.assetid: ebd79cd3-5fdd-458d-8dc8-fc96408958b5
+---
+
 # Troubleshooting
 
 Having trouble setting up your machine or running a container? We created a PowerShell script to check for common problems. Please give it a try first to see what it finds and share your results.
 
 ```PowerShell
-Invoke-WebRequest https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/windows-server-container-tools/Debug-ContainerHost/Debug-ContainerHost.ps1 -UseBasicParsing | Invoke-Expression
+Invoke-WebRequest https://aka.ms/Debug-ContainerHost.ps1 -UseBasicParsing | Invoke-Expression
 ```
-A list of all of the tests it runs along with common solutions is in the [Readme file](https://github.com/Microsoft/Virtualization-Documentation/blob/master/windows-server-container-tools/Debug-ContainerHost/README.md) for the script.
+A list of all of the tests it runs along with common solutions is in the [Readme file](https://github.com/Microsoft/Virtualization-Documentation/blob/live/windows-server-container-tools/Debug-ContainerHost/README.md) for the script.
 
 If that doesn't help find the source of the problem, please go ahead and post the output from your script on the [Container Forum](https://social.msdn.microsoft.com/Forums/en-US/home?forum=windowscontainers). This is the best place to get help from the community including Windows Insiders and developers.
 
@@ -68,6 +80,31 @@ sc.exe start docker
 
 This will log much more into the Application event log, so it's best to remove the `-D` option once you are done troubleshooting. Use the same steps above without `-D` and restart the service to disable the debug logging.
 
+An alternate to the above is to run the docker daemon in debug mode from an elevated PowerShell prompt, capturing output directly into a file.
+```PowerShell
+sc.exe stop docker
+<path\to\>dockerd.exe -D > daemon.log 2>&1
+```
+
+#### Obtaining stack dump and daemon data.
+
+Generally, these are only useful if explicitly requested by Microsoft support, or docker developers. They can be used to assist diagnosing a situation where docker appears to have hung. 
+
+Download [docker-signal.exe](https://github.com/jhowardmsft/docker-signal).
+
+Usage:
+```PowerShell
+Get-Process dockerd
+# Note the process ID in the `Id` column
+docker-signal -pid=<id>
+```
+
+The output files will be located in the root directory docker is running in. The default directory is `C:\Program Files\Docker`. The actual directory can be confirmed by running `docker info -f "{{.DockerRootDir}}"`.
+
+The files will be `goroutine-stacks-<timestamp>.log` and `daemon-data-<timestamp>.log`.
+
+Note that `daemon-data*.log` may contain personal information and should generally only be shared with trusted support people. `goroutine-stacks*.log` does not contain personal information.
+
 
 ### Host Container Service
 The Docker Engine depends on a Windows-specific Host Container Service. It has separate logs: 
@@ -82,3 +119,37 @@ Get-WinEvent -LogName Microsoft-Windows-Hyper-V-Compute-Admin
 Get-WinEvent -LogName Microsoft-Windows-Hyper-V-Compute-Operational 
 ```
 
+#### Capturing HCS analytic/debug logs
+
+To enable analytic/debug logs for Hyper-V Compute and save them to `hcslog.evtx`.
+
+```PowerShell
+# Enable the analytic logs
+wevtutil.exe sl Microsoft-Windows-Hyper-V-Compute-Analytic /e:true /q:true
+	 
+# <reproduce your issue>
+	 
+# Export to an evtx
+wevtutil.exe epl Microsoft-Windows-Hyper-V-Compute-Analytic <hcslog.evtx>
+	 
+# Disable
+wevtutil.exe sl Microsoft-Windows-Hyper-V-Compute-Analytic /e:false /q:true
+```
+
+#### Capturing HCS verbose tracing
+
+Generally, these are only useful if requested by Microsoft support. 
+
+Download [HcsTraceProfile.wprp](https://gist.github.com/jhowardmsft/71b37956df0b4248087c3849b97d8a71)
+
+```PowerShell
+# Enable tracing
+wpr.exe -start HcsTraceProfile.wprp!HcsArgon -filemode
+
+# <reproduce your issue>
+
+# Capture to HcsTrace.etl
+wpr.exe -stop HcsTrace.etl "some description"
+```
+
+Provide `HcsTrace.etl` to your support contact.

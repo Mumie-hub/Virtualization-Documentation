@@ -1,0 +1,30 @@
+﻿{
+  "build": {
+    "content": [
+      {
+        "files": ["**/**.md", "**/**.yml"],
+        "exclude": [
+          "**/obj/**",
+          "**/includes/**",
+          "README.md",
+          "LICENSE",
+          "LICENSE-CODE",
+          "ThirdPartyNotices"
+        ]
+      }
+    ],
+    "resource": [
+        {
+          "files": ["**/media/**"],
+          "exclude": ["**/obj/**"]
+        }
+    ],
+    "externalReference": [
+    ],
+    "template": "op.html",
+    "globalMetadata": {
+      "breadcrumb_path": "/virtualization/landing-page/toc.json"
+    },
+    "dest": "virtualization/hyper-v-on-windows"
+  }
+}
